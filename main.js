@@ -1,48 +1,60 @@
-// Bug fixes applied on 2026-03-25 14:34:10 UTC
+// Imported dependencies
+const { validateImageFile, ensureDB } = require('./helpers');
 
-// 1) Fix stock update SQL to use CASE/WHEN instead of MAX()
-// Example SQL: UPDATE products SET stock = CASE WHEN condition THEN value ELSE stock END;
-
-// 2) Add database initialization validation
-function validateDatabaseInitialization() {
-    // Check if database is initialized
-    if (!databaseIsInitialized()) {
-        throw new Error('Database not initialized!');
-    }
-}
-
-// 3) Add file size and type validation for image uploads
-function validateImageUpload(file) {
-    const maxSize = 2 * 1024 * 1024; // 2MB
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
-    if (file.size > maxSize) {
-        throw new Error('File size exceeds 2MB!');
-    }
-    if (!validTypes.includes(file.type)) {
-        throw new Error('Invalid file type!');
-    }
-}
-
-// 4) Wrap product variant updates in transactions to prevent race conditions
-function updateProductVariants(variants) {
-    database.transaction(() => {
-        variants.forEach(variant => {
-            // Update each product variant
-            updateVariant(variant);
-        });
-    });
-}
-
-// 5) Add proper error handling for invoices:getById
-async function getInvoiceById(id) {
+// Main logic
+async function updateProductStock(productId, newStock) {
     try {
-        const invoice = await database.getInvoiceById(id);
+        // Ensure Database Connection
+        await ensureDB();
+        const connection = await getConnection();
+
+        // Stock Update Logic
+        const result = await connection.query(`UPDATE products SET stock = CASE product_id `;
+        result += `WHEN ? THEN ? `;
+        result += `ELSE stock END WHERE product_id IN (?)`, [productId, newStock, productId]);
+
+        // Handle Result
+        if (result.affectedRows === 0) {
+            throw new Error('Stock update failed. Product not found.');
+        }
+    } catch (error) {
+        console.error('Error updating product stock:', error);
+        throw error;
+    }
+}
+
+async function addTransaction(productVariantId, transactionData) {
+    try {
+        // Ensure Database Connection
+        await ensureDB();
+        const connection = await getConnection();
+
+        // Start Transaction
+        await connection.beginTransaction();
+        try {
+            // Example transaction logic
+            await connection.query('INSERT INTO transactions SET ?', transactionData);
+            await connection.commitTransaction();
+        } catch (transactionError) {
+            await connection.rollbackTransaction();
+            throw transactionError;
+        }
+    } catch (error) {
+        console.error('Error adding transaction:', error);
+        throw error;
+    }
+}
+
+async function getInvoiceById(invoiceId) {
+    try {
+        await ensureDB();
+        const invoice = await getInvoice(invoiceId);
         if (!invoice) {
-            throw new Error('Invoice not found!');
+            throw new Error('Invoice not found.');
         }
         return invoice;
     } catch (error) {
-        console.error('Error fetching invoice:', error);
-        throw new Error('Failed to retrieve invoice.');
+        console.error('Error retrieving invoice by ID:', error);
+        throw error;
     }
 }
