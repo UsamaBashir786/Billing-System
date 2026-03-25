@@ -1,0 +1,15 @@
+BillPro Billing System
+Copyright © 2026 Sip Soda
+
+This software is licensed for personal and commercial use.
+All rights reserved.
+
+
+
+npm install
+
+# 2. Build the installer
+npm run build:installer
+
+# 3. Find your installer
+# Look in: dist/BillPro-Setup-1.0.0.exe
